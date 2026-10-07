@@ -1,0 +1,97 @@
+// Cached access to daily candles.
+//
+//   memory cache → MongoDB → Yahoo Finance
+//
+// A cached series younger than CACHE_TTL_MINUTES is used as is. An older one
+// is topped up by downloading only the last few days and merging them in.
+// Concurrent requests for the same symbol share one download.
+
+import { aggregateCandles } from '../../shared/engine/candles.js'
+import { isDbConnected } from '../config/db.js'
+import { env } from '../config/env.js'
+import { PriceHistory } from '../models/PriceHistory.js'
+import { fetchDailyCandles } from './marketDataService.js'
+
+const memory = new Map() // symbol → { candles, name, fetchedAt }
+const inFlight = new Map() // symbol → Promise
+const OVERLAP_DAYS = 10 // re-download a little history so revised candles get replaced
+
+const isFresh = (entry) => entry && Date.now() - entry.fetchedAt.getTime() < env.cacheTtlMinutes * 60000
+
+function daysBefore(time, days) {
+  return new Date(new Date(`${time}T00:00:00Z`).getTime() - days * 86400000).toISOString().slice(0, 10)
+}
+
+function merge(existing, latest) {
+  if (!latest.length) return existing
+  const cutoff = latest[0].time
+  return [...existing.filter((c) => c.time < cutoff), ...latest]
+}
+
+async function loadFromDb(symbol) {
+  if (!isDbConnected()) return null
+  const doc = await PriceHistory.findOne({ symbol }).lean()
+  return doc ? { candles: doc.candles, name: doc.name, fetchedAt: doc.fetchedAt } : null
+}
+
+async function saveToDb(symbol, entry) {
+  if (!isDbConnected()) return
+  try {
+    await PriceHistory.updateOne(
+      { symbol },
+      { $set: { candles: entry.candles, name: entry.name, fetchedAt: entry.fetchedAt, source: 'yahoo' } },
+      { upsert: true },
+    )
+  } catch (error) {
+    console.warn(`Could not cache ${symbol} in MongoDB: ${error.message}`)
+  }
+}
+
+async function refresh(symbol) {
+  const cached = memory.get(symbol) ?? (await loadFromDb(symbol))
+  if (isFresh(cached)) {
+    memory.set(symbol, cached)
+    return cached
+  }
+
+  let entry
+  if (cached?.candles?.length) {
+    try {
+      const fromDate = daysBefore(cached.candles[cached.candles.length - 1].time, OVERLAP_DAYS)
+      const latest = await fetchDailyCandles(symbol, fromDate)
+      entry = { candles: merge(cached.candles, latest.candles), name: latest.name ?? cached.name, fetchedAt: new Date() }
+    } catch (error) {
+      // Serve slightly old data rather than failing completely.
+      console.warn(`Refresh failed for ${symbol}, serving cached data: ${error.message}`)
+      memory.set(symbol, cached)
+      return cached
+    }
+  } else {
+    const full = await fetchDailyCandles(symbol)
+    entry = { candles: full.candles, name: full.name, fetchedAt: new Date() }
+  }
+
+  memory.set(symbol, entry)
+  await saveToDb(symbol, entry)
+  return entry
+}
+
+export async function getDailySeries(symbol) {
+  if (isFresh(memory.get(symbol))) return memory.get(symbol)
+  if (!inFlight.has(symbol)) {
+    inFlight.set(
+      symbol,
+      refresh(symbol).finally(() => inFlight.delete(symbol)),
+    )
+  }
+  return inFlight.get(symbol)
+}
+
+export async function getCandles(symbol, timeframe) {
+  const { candles } = await getDailySeries(symbol)
+  return aggregateCandles(candles, timeframe)
+}
+
+export function cacheStats() {
+  return { symbolsInMemory: memory.size, downloading: inFlight.size }
+}

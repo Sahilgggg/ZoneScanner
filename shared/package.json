@@ -1,0 +1,6 @@
+{
+  "name": "stock-scanner-shared",
+  "private": true,
+  "description": "Zone engine and constants shared by the frontend (Vite) and backend (Node).",
+  "type": "module"
+}

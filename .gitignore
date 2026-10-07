@@ -1,0 +1,16 @@
+# Dependencies and builds
+node_modules/
+dist/
+dist-ssr/
+
+# Secrets: never commit real environment files
+.env
+.env.*
+!.env.example
+
+# Logs and editor files
+*.log
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/

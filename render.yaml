@@ -1,0 +1,29 @@
+# Render Blueprint: deploys the Express API from the backend/ folder.
+# The shared/ folder (zone engine) is imported by the backend, so changes
+# there also trigger a deploy.
+services:
+  - type: web
+    name: stock-scanner-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    buildFilter:
+      paths:
+        - backend/**
+        - shared/**
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: MONGODB_URI
+        sync: false # set in the Render dashboard (secret)
+      - key: CORS_ORIGIN
+        sync: false # your Vercel URL(s), comma-separated
+      - key: CACHE_TTL_MINUTES
+        value: "30"
+      - key: INDEX_TTL_HOURS
+        value: "24"
+      - key: YAHOO_CONCURRENCY
+        value: "4"
