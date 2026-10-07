@@ -8,7 +8,8 @@ import TimeframeSelector from '../components/TimeframeSelector.jsx'
 import { loadCustomList, parseSymbolList, saveCustomList, UNIVERSES } from '../data/universes.js'
 import { DATA_SOURCE, getUniverseSymbols } from '../services/marketData.js'
 import { categorize, countAllTimeframes, getCategory, runScan, sortRows } from '../services/scanner.js'
-import { DEFAULT_TIMEFRAME, isValidTimeframe, timeframeLabel } from '../utils/constants.js'
+import { isValidTimeframe, timeframeLabel } from '../utils/constants.js'
+import { getPreferredTimeframe, setPref } from '../utils/preferences.js'
 
 // Finished scans survive navigation to the analyzer and back.
 const scanCache = new Map()
@@ -30,10 +31,22 @@ export default function ScannerPage() {
   const uParam = searchParams.get('u')
   const universe = UNIVERSES.some((u) => u.value === uParam && isAvailable(u)) ? uParam : 'nifty50'
   const tfParam = searchParams.get('tf')
-  const timeframe = isValidTimeframe(tfParam) ? tfParam : DEFAULT_TIMEFRAME
+  const timeframe = isValidTimeframe(tfParam) ? tfParam : getPreferredTimeframe()
   const categoryId = getCategory(searchParams.get('cat')) ? searchParams.get('cat') : DEFAULT_CATEGORY
   const minStrength = Number(searchParams.get('min')) || 0
   const category = getCategory(categoryId)
+
+  // Remember the timeframe (shared with the analyzer) and the other filters,
+  // so the menu link and a reload bring the scanner back exactly as it was.
+  useEffect(() => {
+    setPref('timeframe', timeframe)
+  }, [timeframe])
+  useEffect(() => {
+    const kept = new URLSearchParams(searchParams)
+    kept.delete('tf')
+    const query = kept.toString()
+    setPref('scannerSearch', query ? `?${query}` : '')
+  }, [searchParams])
 
   const [customList, setCustomList] = useState(loadCustomList)
   const [customDraft, setCustomDraft] = useState(() => loadCustomList().join(', '))

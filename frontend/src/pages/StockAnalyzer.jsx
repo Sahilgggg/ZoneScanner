@@ -7,7 +7,8 @@ import TimeframeSelector from '../components/TimeframeSelector.jsx'
 import ZoneInfo from '../components/ZoneInfo.jsx'
 import ZoneTable from '../components/ZoneTable.jsx'
 import { getAnalysis, getMultiTimeframe } from '../services/marketData.js'
-import { DEFAULT_SYMBOL, DEFAULT_TIMEFRAME, isValidTimeframe, timeframeLabel } from '../utils/constants.js'
+import { DEFAULT_SYMBOL, isValidTimeframe, timeframeLabel } from '../utils/constants.js'
+import { getPreferredTimeframe, setPref } from '../utils/preferences.js'
 import { formatDate, formatPercent, formatPrice, formatVolume } from '../utils/format.js'
 
 // The URL is the source of truth: /analyzer/USHAMART?tf=weekly&zone=<id>
@@ -18,8 +19,16 @@ export default function StockAnalyzer() {
 
   const symbol = (params.symbol || DEFAULT_SYMBOL).toUpperCase()
   const tfParam = searchParams.get('tf')
-  const timeframe = isValidTimeframe(tfParam) ? tfParam : DEFAULT_TIMEFRAME
+  const timeframe = isValidTimeframe(tfParam) ? tfParam : getPreferredTimeframe()
   const viewKey = `${symbol}|${timeframe}`
+
+  // Remember the timeframe (shared with the scanner) and the last stock viewed.
+  useEffect(() => {
+    setPref('timeframe', timeframe)
+  }, [timeframe])
+  useEffect(() => {
+    setPref('lastSymbol', symbol)
+  }, [symbol])
 
   // { key, data, error } — `loading` is derived: the stored key is not the current one.
   const [result, setResult] = useState({ key: null, data: null, error: null })

@@ -1,8 +1,8 @@
-import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom'
+import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import ScannerPage from './pages/ScannerPage.jsx'
 import StockAnalyzer from './pages/StockAnalyzer.jsx'
 import { DATA_SOURCE } from './services/marketData.js'
-import { DEFAULT_SYMBOL } from './utils/constants.js'
+import { analyzerPath, scannerPath } from './utils/preferences.js'
 
 function NotFound() {
   return (
@@ -16,6 +16,10 @@ function NotFound() {
 }
 
 export default function App() {
+  // Re-render on every navigation so the menu links pick up the latest saved
+  // scanner filters (they are read from preferences at render time).
+  useLocation()
+
   return (
     <div className="app">
       <header className="app-header">
@@ -24,7 +28,7 @@ export default function App() {
           <span>Demand &amp; Supply Scanner</span>
         </Link>
         <nav className="app-nav">
-          <NavLink to="/scanner" className="nav-link">
+          <NavLink to={scannerPath()} className="nav-link">
             Scanner
           </NavLink>
           <NavLink to="/analyzer" className="nav-link">
@@ -40,9 +44,10 @@ export default function App() {
 
       <main className="app-main">
         <Routes>
-          <Route path="/" element={<Navigate to="/scanner" replace />} />
+          <Route path="/" element={<Navigate to={scannerPath()} replace />} />
           <Route path="/scanner" element={<ScannerPage />} />
-          <Route path="/analyzer" element={<Navigate to={`/analyzer/${DEFAULT_SYMBOL}`} replace />} />
+          {/* The menu's Analyzer link lands here and reopens the last stock viewed. */}
+          <Route path="/analyzer" element={<Navigate to={analyzerPath()} replace />} />
           <Route path="/analyzer/:symbol" element={<StockAnalyzer />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
