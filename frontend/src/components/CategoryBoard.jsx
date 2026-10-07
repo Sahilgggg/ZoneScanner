@@ -21,7 +21,11 @@ export default function CategoryBoard({ buckets, activeId, onSelect, loading }) 
                 aria-pressed={c.id === activeId}
                 onClick={() => onSelect(c.id)}
               >
-                <span className="board-count">{loading ? '…' : (buckets[c.id]?.length ?? 0)}</span>
+                {loading ? (
+                  <span className="board-count-loading" aria-label="Loading" />
+                ) : (
+                  <span className="board-count">{buckets[c.id]?.length ?? 0}</span>
+                )}
                 <span className="board-label">{c.label}</span>
               </button>
             ))}

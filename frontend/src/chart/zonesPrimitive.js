@@ -5,9 +5,9 @@
 // edge of the chart (active zones) or to the candle that broke it.
 
 const COLORS = {
-  demand: { fill: 'rgba(38, 166, 154, 0.16)', fillSelected: 'rgba(38, 166, 154, 0.32)', line: 'rgba(38, 166, 154, 0.9)' },
-  supply: { fill: 'rgba(239, 83, 80, 0.16)', fillSelected: 'rgba(239, 83, 80, 0.32)', line: 'rgba(239, 83, 80, 0.9)' },
-  broken: { fill: 'rgba(139, 148, 158, 0.10)', fillSelected: 'rgba(139, 148, 158, 0.25)', line: 'rgba(139, 148, 158, 0.7)' },
+  demand: { fill: 'rgba(45, 212, 191, 0.14)', fillSelected: 'rgba(45, 212, 191, 0.3)', line: 'rgba(45, 212, 191, 0.9)' },
+  supply: { fill: 'rgba(251, 113, 133, 0.14)', fillSelected: 'rgba(251, 113, 133, 0.3)', line: 'rgba(251, 113, 133, 0.9)' },
+  broken: { fill: 'rgba(148, 163, 184, 0.08)', fillSelected: 'rgba(148, 163, 184, 0.22)', line: 'rgba(148, 163, 184, 0.65)' },
 }
 
 class ZonesRenderer {
@@ -18,7 +18,7 @@ class ZonesRenderer {
   draw(target) {
     target.useBitmapCoordinateSpace(({ context: ctx, horizontalPixelRatio: hr, verticalPixelRatio: vr }) => {
       ctx.save()
-      ctx.font = `${Math.round(11 * vr)}px system-ui, sans-serif`
+      ctx.font = `600 ${Math.round(10.5 * vr)}px 'JetBrains Mono', ui-monospace, monospace`
       ctx.textBaseline = 'top'
       for (const r of this._rects) {
         const colors = r.zone.status === 'BROKEN' ? COLORS.broken : COLORS[r.zone.side]

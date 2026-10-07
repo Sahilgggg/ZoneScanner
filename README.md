@@ -1,4 +1,6 @@
-# Demand & Supply Zone Scanner
+# ZoneScanner — Demand & Supply Zones for NSE
+
+**Built by Sahil & Yash.**
 
 A web app that finds **demand and supply zones** on NSE stocks using clearly defined price-action rules, tracks each zone through its lifecycle, and scans whole indices (NIFTY 50 / 100 / 500 or your own list) to show which stocks are approaching, inside, or reacting from a zone on any timeframe.
 
@@ -7,6 +9,8 @@ A web app that finds **demand and supply zones** on NSE stocks using clearly def
 ---
 
 ## Features
+
+**Home page** — what ZoneScanner does, how zones work, the zone lifecycle, and a live "sector pulse" of sectors currently in demand or supply.
 
 **Single-stock analyzer**
 - Interactive candlestick chart (Lightweight Charts): volume, zoom, pan, crosshair, OHLC readout, current-price line

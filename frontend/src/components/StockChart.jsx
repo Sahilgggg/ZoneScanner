@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import { ZonesPrimitive } from '../chart/zonesPrimitive.js'
 import { formatNumber, formatVolume } from '../utils/format.js'
 
-const UP = '#26a69a'
-const DOWN = '#ef5350'
+const UP = '#2dd4bf'
+const DOWN = '#fb7185'
 const VISIBLE_CANDLES = 160
 
 // Interactive candlestick chart with volume, zone rectangles, crosshair,
@@ -25,17 +25,21 @@ export default function StockChart({ candles, zones, selectedZoneId, onZoneClick
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#8b949e',
-        fontFamily: 'system-ui, Segoe UI, Roboto, sans-serif',
+        textColor: '#8492a9',
+        fontFamily: 'Inter, system-ui, Segoe UI, Roboto, sans-serif',
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: 'rgba(42, 50, 61, 0.5)' },
-        horzLines: { color: 'rgba(42, 50, 61, 0.5)' },
+        vertLines: { color: 'rgba(148, 163, 184, 0.06)' },
+        horzLines: { color: 'rgba(148, 163, 184, 0.06)' },
       },
-      crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: { borderColor: '#2a323d' },
-      timeScale: { borderColor: '#2a323d', rightOffset: 6 },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: { color: 'rgba(124, 131, 255, 0.5)', labelBackgroundColor: '#4f56d6' },
+        horzLine: { color: 'rgba(124, 131, 255, 0.5)', labelBackgroundColor: '#4f56d6' },
+      },
+      rightPriceScale: { borderColor: 'rgba(148, 163, 184, 0.15)' },
+      timeScale: { borderColor: 'rgba(148, 163, 184, 0.15)', rightOffset: 6 },
     })
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
@@ -91,7 +95,7 @@ export default function StockChart({ candles, zones, selectedZoneId, onZoneClick
       list.map((c) => ({
         time: c.time,
         value: c.volume,
-        color: c.close >= c.open ? 'rgba(38, 166, 154, 0.45)' : 'rgba(239, 83, 80, 0.45)',
+        color: c.close >= c.open ? 'rgba(45, 212, 191, 0.35)' : 'rgba(251, 113, 133, 0.35)',
       })),
     )
     if (list.length) {

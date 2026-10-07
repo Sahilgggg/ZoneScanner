@@ -23,12 +23,30 @@ function toYahooSymbol(symbol) {
 function parseChart(result) {
   const timestamps = result.timestamp ?? []
   const quote = result.indicators?.quote?.[0] ?? {}
+  const meta = result.meta ?? {}
+  const istDay = (seconds) => new Date((seconds + IST_OFFSET_SECONDS) * 1000).toISOString().slice(0, 10)
   const byDay = new Map()
   for (let i = 0; i < timestamps.length; i++) {
     const open = quote.open?.[i]
-    const high = quote.high?.[i]
-    const low = quote.low?.[i]
-    const close = quote.close?.[i]
+    let high = quote.high?.[i]
+    let low = quote.low?.[i]
+    let close = quote.close?.[i]
+    // Yahoo sometimes leaves the latest daily bar's close empty (e.g. overnight)
+    // while meta.regularMarketPrice holds that day's last price. Fill it in so
+    // the most recent session isn't dropped.
+    const isLast = i === timestamps.length - 1
+    if (
+      isLast &&
+      (close === null || close === undefined) &&
+      Number.isFinite(open) &&
+      Number.isFinite(meta.regularMarketPrice) &&
+      meta.regularMarketTime &&
+      istDay(meta.regularMarketTime) === istDay(timestamps[i])
+    ) {
+      close = meta.regularMarketPrice
+      high = Math.max(high ?? close, meta.regularMarketDayHigh ?? close, close)
+      low = Math.min(low ?? close, meta.regularMarketDayLow ?? close, close)
+    }
     if ([open, high, low, close].some((v) => v === null || v === undefined || !Number.isFinite(v))) continue
     const time = new Date((timestamps[i] + IST_OFFSET_SECONDS) * 1000).toISOString().slice(0, 10)
     byDay.set(time, {

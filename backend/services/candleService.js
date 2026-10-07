@@ -10,13 +10,16 @@ import { aggregateCandles } from '../../shared/engine/candles.js'
 import { isDbConnected } from '../config/db.js'
 import { env } from '../config/env.js'
 import { PriceHistory } from '../models/PriceHistory.js'
+import { isFresh as isMarketDataFresh } from '../utils/marketHours.js'
 import { fetchDailyCandles } from './marketDataService.js'
 
 const memory = new Map() // symbol → { candles, name, fetchedAt }, least recently used first
 const inFlight = new Map() // symbol → Promise
 const OVERLAP_DAYS = 10 // re-download a little history so revised candles get replaced
 
-const isFresh = (entry) => entry && Date.now() - new Date(entry.fetchedAt).getTime() < env.cacheTtlMinutes * 60000
+// Fresh within CACHE_TTL_MINUTES, or until the next session if fetched after the close.
+const isFresh = (entry) =>
+  Boolean(entry) && isMarketDataFresh(entry.fetchedAt, env.cacheTtlMinutes, new Date(), entry.candles?.at(-1)?.time)
 
 // Small LRU so a full NIFTY 500 scan doesn't hold every history in RAM.
 function remember(symbol, entry) {
