@@ -22,4 +22,9 @@ export const env = {
   indexTtlHours: number('INDEX_TTL_HOURS', 24),
   // Max simultaneous requests to Yahoo Finance.
   yahooConcurrency: number('YAHOO_CONCURRENCY', 4),
+  // How many stock histories to keep in RAM (the rest are read from MongoDB).
+  // Each is ~0.5 MB; keep this low on small instances such as Render's free tier.
+  memoryCacheSymbols: number('MEMORY_CACHE_SYMBOLS', 150),
+  // Rebuild the equal-weighted sector indices after this many hours.
+  sectorTtlHours: number('SECTOR_TTL_HOURS', 12),
 }

@@ -2,6 +2,7 @@ import { normalizeSymbol, SYMBOL_PATTERN } from '../../shared/universes.js'
 import { isValidTimeframe, TIMEFRAME_KEYS } from '../../shared/timeframes.js'
 import { getCandles, getDailySeries } from '../services/candleService.js'
 import { searchStocks } from '../services/indexService.js'
+import { getSectorOf } from '../services/sectorService.js'
 import { getMultiTimeframe, getQuote, getScanSummary, getZones } from '../services/zoneService.js'
 import { badRequest } from '../utils/httpError.js'
 import { buildQuote } from '../../shared/engine/summary.js'
@@ -29,8 +30,12 @@ export async function search(req, res) {
 export async function candles(req, res) {
   const symbol = readSymbol(req)
   const timeframe = readTimeframe(req)
-  const [series, list] = await Promise.all([getDailySeries(symbol), getCandles(symbol, timeframe)])
-  res.json({ symbol, name: series.name, timeframe, quote: buildQuote(series.candles), candles: list })
+  const [series, list, sector] = await Promise.all([
+    getDailySeries(symbol),
+    getCandles(symbol, timeframe),
+    getSectorOf(symbol),
+  ])
+  res.json({ symbol, name: series.name, sector, timeframe, quote: buildQuote(series.candles), candles: list })
 }
 
 // GET /api/stocks/:symbol/quote

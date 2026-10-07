@@ -1136,3 +1136,67 @@ button {
     display: none;
   }
 }
+
+/* ---------- Sectors ---------- */
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.checkbox input {
+  accent-color: var(--accent);
+}
+
+.chip {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--text-muted);
+}
+
+.sector-cell,
+.sector-zone {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sector-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge-sm {
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+.stat-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stat-link:hover .sector-name {
+  text-decoration: underline;
+}

@@ -59,11 +59,12 @@ export async function runScan(symbols, { onProgress, signal } = {}) {
 
 // For one timeframe: { [categoryId]: rows[] }. A stock appears in a category
 // once, with its strongest matching zone (nearest for "approaching").
-export function categorize(scan, timeframe, { minStrength = 0 } = {}) {
+// `filter(row, category)` can drop rows (e.g. sector filters).
+export function categorize(scan, timeframe, { minStrength = 0, filter = null } = {}) {
   const buckets = Object.fromEntries(CATEGORIES.map((c) => [c.id, []]))
   if (!scan) return buckets
 
-  for (const { symbol, quote, timeframes } of scan.results) {
+  for (const { symbol, quote, timeframes, sector } of scan.results) {
     const zones = (timeframes[timeframe] ?? []).filter((z) => z.strength >= minStrength)
     for (const category of CATEGORIES) {
       const matches = zones.filter((z) => z.side === category.side && z.status === category.status)
@@ -72,7 +73,15 @@ export function categorize(scan, timeframe, { minStrength = 0 } = {}) {
         if (category.status === 'APPROACHING') return Math.abs(b.distancePct) < Math.abs(a.distancePct) ? b : a
         return b.strength > a.strength ? b : a
       })
-      buckets[category.id].push({ symbol, price: quote.price, changePct: quote.changePct, timeframe, zone: best })
+      const row = {
+        symbol,
+        price: quote.price,
+        changePct: quote.changePct,
+        sector: sector ?? null,
+        timeframe,
+        zone: best,
+      }
+      if (!filter || filter(row, category)) buckets[category.id].push(row)
     }
   }
   return buckets

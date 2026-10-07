@@ -7,6 +7,7 @@ import { aggregateCandles } from '../../shared/engine/candles.js'
 import { buildQuote, buildScanSummary } from '../../shared/engine/summary.js'
 import { TIMEFRAME_KEYS } from '../../shared/timeframes.js'
 import { getDailySeries } from './candleService.js'
+import { getSectorOf } from './sectorService.js'
 
 export async function getQuote(symbol) {
   const { candles, name } = await getDailySeries(symbol)
@@ -30,6 +31,6 @@ export async function getMultiTimeframe(symbol) {
 
 // Compact all-timeframe result used by the scanner.
 export async function getScanSummary(symbol) {
-  const { candles, name } = await getDailySeries(symbol)
-  return { name, ...buildScanSummary(symbol, candles) }
+  const [{ candles, name }, sector] = await Promise.all([getDailySeries(symbol), getSectorOf(symbol)])
+  return { name, sector, ...buildScanSummary(symbol, candles) }
 }

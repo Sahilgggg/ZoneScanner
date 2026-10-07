@@ -33,6 +33,13 @@ A web app that finds **demand and supply zones** on NSE stocks using clearly def
 - Sortable results (price, distance, strength, touches…), symbol filter, minimum-strength filter
 - Click a stock to open its chart in a side drawer; step through results with ← / →, switch timeframe with 1–6, or open the full analyzer
 
+**Sector support**
+- Every stock is tagged with its NSE industry (20 sectors, from the official NIFTY 500 list)
+- Each sector gets its own **equal-weighted sector index**, analysed for demand/supply zones on every timeframe
+- **Sector confirmation:** a stock's demand (supply) setup is confirmed when its sector index's demand (supply) zone on the same timeframe is *Approaching*, *In Zone* or *Reacting* — shown with a ✓
+- Scanner: Sector column, sector filter, "Sector confirms" filter, and a Sectors panel with each sector's zone status and chart
+- Analyzer: the stock's sector with its demand/supply status; click to open the sector chart
+
 ---
 
 ## Tech stack
@@ -119,7 +126,14 @@ Evaluated on every candle after the zone formed:
 | **Weakening** | Price is near, but the zone has been tested ≥ 3 times or penetrated ≥ 75% |
 | **Broken** | A candle closed beyond the distal line (shown for 5 candles) |
 
-### 5. Strength score (0–100)
+### 5. Sector indices
+Yahoo Finance only has history for a few official sector indices, so the backend builds one per NSE industry from its NIFTY 500 members:
+
+`index_close(t) = index_close(t−1) × (1 + average member return on day t)`
+
+Open/high/low use each member's open/high/low relative to its previous close; volume is the members' combined traded value. Daily returns beyond ±35% are clipped as bad data. The index starts at 1000 fifteen years ago, is stored in MongoDB, and is rebuilt every `SECTOR_TTL_HOURS` (the first build downloads all NIFTY 500 histories and takes a few minutes). It is our own construction, not an official NSE index.
+
+### 6. Strength score (0–100)
 
 | Factor | Weight |
 |---|---|
@@ -174,6 +188,8 @@ In development the frontend proxies `/api` to `localhost:5000`, so no CORS setup
 | `CACHE_TTL_MINUTES` | `30` | Re-download a stock's latest candles after this long |
 | `INDEX_TTL_HOURS` | `24` | Re-download NSE index lists after this long |
 | `YAHOO_CONCURRENCY` | `4` | Max parallel requests to Yahoo Finance |
+| `MEMORY_CACHE_SYMBOLS` | `150` | Stock histories kept in RAM (~0.5 MB each); use ~100 on Render's free 512 MB instance |
+| `SECTOR_TTL_HOURS` | `12` | Rebuild sector indices after this long |
 
 ### Frontend (`frontend/.env`)
 
@@ -200,10 +216,13 @@ Base URL: `/api`
 | GET | `/stocks/:symbol/quote` | Latest price and change |
 | GET | `/stocks/:symbol/zones?timeframe=weekly` | Zones with status, strength and details |
 | GET | `/stocks/:symbol/multi-timeframe` | Headline demand/supply zone per timeframe |
-| GET | `/stocks/:symbol/summary` | Compact zones for all timeframes (used by the scanner) |
+| GET | `/stocks/:symbol/summary` | Compact zones for all timeframes + sector (used by the scanner) |
+| GET | `/sectors` | All sectors with headline demand/supply zones per timeframe (`building: true` while indices are being built) |
+| GET | `/sectors/:slug` | One sector: zones for all timeframes and member symbols |
+| GET | `/sectors/:slug/candles?timeframe=weekly` | Sector index candles (503 while still being built) |
 
 Timeframes: `daily`, `weekly`, `monthly`, `quarterly`, `halfyearly`, `yearly`.
-Errors return JSON `{ "message": "…" }` with status 400 (bad input), 404 (unknown symbol) or 502 (data provider unreachable).
+Errors return JSON `{ "message": "…" }` with status 400 (bad input), 404 (unknown symbol or sector), 502 (data provider unreachable) or 503 (sector index still building).
 
 ---
 

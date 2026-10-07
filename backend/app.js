@@ -3,6 +3,7 @@ import cors from 'cors'
 import express from 'express'
 import { isDbConnected } from './config/db.js'
 import { env } from './config/env.js'
+import sectorRoutes from './routes/sectorRoutes.js'
 import stockRoutes from './routes/stockRoutes.js'
 import universeRoutes from './routes/universeRoutes.js'
 import { cacheStats } from './services/candleService.js'
@@ -34,6 +35,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/stocks', stockRoutes)
 app.use('/api/universes', universeRoutes)
+app.use('/api/sectors', sectorRoutes)
 
 app.use('/api', (req, res) => {
   res.status(404).json({ message: `No API route for ${req.method} ${req.originalUrl}` })

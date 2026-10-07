@@ -12,11 +12,24 @@ import { env } from '../config/env.js'
 import { PriceHistory } from '../models/PriceHistory.js'
 import { fetchDailyCandles } from './marketDataService.js'
 
-const memory = new Map() // symbol → { candles, name, fetchedAt }
+const memory = new Map() // symbol → { candles, name, fetchedAt }, least recently used first
 const inFlight = new Map() // symbol → Promise
 const OVERLAP_DAYS = 10 // re-download a little history so revised candles get replaced
 
-const isFresh = (entry) => entry && Date.now() - entry.fetchedAt.getTime() < env.cacheTtlMinutes * 60000
+const isFresh = (entry) => entry && Date.now() - new Date(entry.fetchedAt).getTime() < env.cacheTtlMinutes * 60000
+
+// Small LRU so a full NIFTY 500 scan doesn't hold every history in RAM.
+function remember(symbol, entry) {
+  memory.delete(symbol)
+  memory.set(symbol, entry)
+  while (memory.size > env.memoryCacheSymbols) memory.delete(memory.keys().next().value)
+}
+
+function recall(symbol) {
+  const entry = memory.get(symbol)
+  if (entry) remember(symbol, entry)
+  return entry
+}
 
 function daysBefore(time, days) {
   return new Date(new Date(`${time}T00:00:00Z`).getTime() - days * 86400000).toISOString().slice(0, 10)
@@ -48,9 +61,9 @@ async function saveToDb(symbol, entry) {
 }
 
 async function refresh(symbol) {
-  const cached = memory.get(symbol) ?? (await loadFromDb(symbol))
+  const cached = recall(symbol) ?? (await loadFromDb(symbol))
   if (isFresh(cached)) {
-    memory.set(symbol, cached)
+    remember(symbol, cached)
     return cached
   }
 
@@ -63,7 +76,7 @@ async function refresh(symbol) {
     } catch (error) {
       // Serve slightly old data rather than failing completely.
       console.warn(`Refresh failed for ${symbol}, serving cached data: ${error.message}`)
-      memory.set(symbol, cached)
+      remember(symbol, cached)
       return cached
     }
   } else {
@@ -71,13 +84,14 @@ async function refresh(symbol) {
     entry = { candles: full.candles, name: full.name, fetchedAt: new Date() }
   }
 
-  memory.set(symbol, entry)
+  remember(symbol, entry)
   await saveToDb(symbol, entry)
   return entry
 }
 
 export async function getDailySeries(symbol) {
-  if (isFresh(memory.get(symbol))) return memory.get(symbol)
+  const hit = recall(symbol)
+  if (isFresh(hit)) return hit
   if (!inFlight.has(symbol)) {
     inFlight.set(
       symbol,

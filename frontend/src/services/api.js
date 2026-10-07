@@ -70,4 +70,14 @@ export async function getUniverse(id, { signal } = {}) {
   return data
 }
 
+export async function getSectors({ signal } = {}) {
+  const { data } = await api.get('/sectors', { signal })
+  return data
+}
+
+export async function getSectorCandles(slug, timeframe, { signal } = {}) {
+  const { data } = await api.get(`/sectors/${encodeURIComponent(slug)}/candles`, { params: { timeframe }, signal })
+  return data
+}
+
 export default api

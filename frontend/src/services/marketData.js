@@ -34,9 +34,9 @@ async function getDailySeries(symbol, { signal } = {}) {
   let series
   if (DATA_SOURCE === 'api') {
     const data = await api.getCandles(symbol, 'daily', { signal })
-    series = { candles: data.candles, name: data.name, loadedAt: Date.now() }
+    series = { candles: data.candles, name: data.name, sector: data.sector ?? null, loadedAt: Date.now() }
   } else {
-    series = { candles: generateDailyCandles(symbol), name: null, loadedAt: Date.now() }
+    series = { candles: generateDailyCandles(symbol), name: null, sector: null, loadedAt: Date.now() }
   }
   if (!series.candles?.length) throw new Error(`No price data found for ${symbol}.`)
   remember(dailyCache, symbol, series, 40)
@@ -52,6 +52,7 @@ export async function getAnalysis(symbol, timeframe, options) {
   const analysis = {
     symbol,
     name: series.name,
+    sector: series.sector,
     timeframe,
     quote: buildQuote(series.candles),
     ...analyzeCandles(aggregateCandles(series.candles, timeframe)),
@@ -85,4 +86,33 @@ export async function getUniverseSymbols(universe, options) {
   if (universe === 'nifty50') return { symbols: NIFTY_50, source: 'bundled' }
   if (universe === 'nifty100') return { symbols: [...NIFTY_50, ...NIFTY_NEXT_50], source: 'bundled' }
   throw new Error('NIFTY 500 needs real data (VITE_DATA_SOURCE=api).')
+}
+
+// ---------- Sectors (real data only) ----------
+
+// { building, progress, sectors: [{ slug, name, memberCount, quote, timeframes: { daily: { demand, supply } } }] }
+export async function getSectors(options) {
+  if (DATA_SOURCE !== 'api') return { unavailable: true, building: false, sectors: [] }
+  return api.getSectors(options)
+}
+
+// Candles + zones of a sector's equal-weighted index on one timeframe.
+export async function getSectorAnalysis(slug, timeframe, options) {
+  const key = `sector:${slug}|${timeframe}`
+  const cached = analysisCache.get(key)
+  if (cached && Date.now() - cached.loadedAt < CLIENT_CACHE_MS) return cached
+
+  const data = await api.getSectorCandles(slug, timeframe, options)
+  const analysis = {
+    symbol: data.name,
+    name: data.name,
+    sectorSlug: slug,
+    memberCount: data.memberCount,
+    timeframe,
+    quote: data.quote,
+    loadedAt: Date.now(),
+    ...analyzeCandles(data.candles),
+  }
+  remember(analysisCache, key, analysis, ANALYSIS_CACHE_LIMIT)
+  return analysis
 }

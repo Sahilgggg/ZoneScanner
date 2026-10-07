@@ -1,15 +1,31 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import ChartPreview from '../components/ChartPreview.jsx'
 import MultiTimeframe from '../components/MultiTimeframe.jsx'
 import StockChart from '../components/StockChart.jsx'
 import StockSearch from '../components/StockSearch.jsx'
 import TimeframeSelector from '../components/TimeframeSelector.jsx'
 import ZoneInfo from '../components/ZoneInfo.jsx'
 import ZoneTable from '../components/ZoneTable.jsx'
-import { getAnalysis, getMultiTimeframe } from '../services/marketData.js'
-import { DEFAULT_SYMBOL, isValidTimeframe, timeframeLabel } from '../utils/constants.js'
-import { getPreferredTimeframe, setPref } from '../utils/preferences.js'
+import { useSectors } from '../hooks/useSectors.js'
+import { DATA_SOURCE, getAnalysis, getMultiTimeframe } from '../services/marketData.js'
+import { DEFAULT_SYMBOL, isValidTimeframe, statusLabel, timeframeLabel, ZONE_STATUS } from '../utils/constants.js'
 import { formatDate, formatPercent, formatPrice, formatVolume } from '../utils/format.js'
+import { getPreferredTimeframe, setPref } from '../utils/preferences.js'
+import { sectorConfirms, sectorZone } from '../utils/sectors.js'
+
+// Status of the sector index's demand ("D") or supply ("S") zone; ✓ = confirms.
+function SectorSide({ sectorData, timeframe, side }) {
+  const zone = sectorZone(sectorData, timeframe, side)
+  if (!zone) return null
+  const confirms = sectorConfirms(sectorData, timeframe, side)
+  return (
+    <span className={`badge badge-sm tone-${ZONE_STATUS[zone.status]?.tone ?? 'neutral'}`} title={`Sector ${side} zone`}>
+      {side === 'demand' ? 'D' : 'S'}: {confirms && '✓ '}
+      {statusLabel(zone.status)}
+    </span>
+  )
+}
 
 // The URL is the source of truth: /analyzer/USHAMART?tf=weekly&zone=<id>
 export default function StockAnalyzer() {
@@ -76,6 +92,10 @@ export default function StockAnalyzer() {
   }
 
   const quote = analysis?.quote
+  const { bySlug: sectorsBySlug } = useSectors()
+  const stockSector = analysis?.sector ?? null
+  const sectorData = sectorsBySlug.get(stockSector?.slug)
+  const [sectorChartOpen, setSectorChartOpen] = useState(false)
   const changeClass = quote?.change >= 0 ? 'text-demand' : 'text-supply'
 
   return (
@@ -112,6 +132,26 @@ export default function StockAnalyzer() {
             {analysis?.supply ? `${formatPrice(analysis.supply.zoneLow)} – ${formatPrice(analysis.supply.zoneHigh)}` : '—'}
           </span>
         </div>
+        {DATA_SOURCE === 'api' && (
+          <div className="stat">
+            <span className="stat-label">Sector · {timeframeLabel(timeframe)}</span>
+            {stockSector ? (
+              <button
+                type="button"
+                className="stat-link stat-value stat-value-sm sector-cell"
+                onClick={() => setSectorChartOpen(true)}
+                disabled={!sectorData}
+                title={sectorData ? 'Open the sector index chart' : 'Sector index is still being built'}
+              >
+                <span className="sector-name">{stockSector.name}</span>
+                <SectorSide sectorData={sectorData} timeframe={timeframe} side="demand" />
+                <SectorSide sectorData={sectorData} timeframe={timeframe} side="supply" />
+              </button>
+            ) : (
+              <span className="stat-value stat-value-sm muted">{analysis ? 'Not in NIFTY 500' : '—'}</span>
+            )}
+          </div>
+        )}
         <div className="stat">
           <span className="stat-label">Last candle</span>
           <span className="stat-value stat-value-sm">{formatDate(quote?.date)}</span>
@@ -158,6 +198,15 @@ export default function StockAnalyzer() {
       </div>
 
       <ZoneTable zones={zones} selectedZoneId={selectedZone?.id} onSelect={selectZone} />
+
+      {sectorChartOpen && stockSector && (
+        <ChartPreview
+          key={`sector:${stockSector.slug}|${timeframe}`}
+          sector={stockSector}
+          timeframe={timeframe}
+          onClose={() => setSectorChartOpen(false)}
+        />
+      )}
 
       <MultiTimeframe
         symbol={symbol}

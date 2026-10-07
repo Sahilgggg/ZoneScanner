@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import CategoryBoard from '../components/CategoryBoard.jsx'
 import ChartPreview from '../components/ChartPreview.jsx'
 import ScanResultsTable from '../components/ScanResultsTable.jsx'
+import SectorPanel from '../components/SectorPanel.jsx'
 import TimeframeMatrix from '../components/TimeframeMatrix.jsx'
 import TimeframeSelector from '../components/TimeframeSelector.jsx'
 import { loadCustomList, parseSymbolList, saveCustomList, UNIVERSES } from '../data/universes.js'
@@ -10,6 +11,8 @@ import { DATA_SOURCE, getUniverseSymbols } from '../services/marketData.js'
 import { categorize, countAllTimeframes, getCategory, runScan, sortRows } from '../services/scanner.js'
 import { isValidTimeframe, timeframeLabel } from '../utils/constants.js'
 import { getPreferredTimeframe, setPref } from '../utils/preferences.js'
+import { sectorConfirms } from '../utils/sectors.js'
+import { useSectors } from '../hooks/useSectors.js'
 
 // Finished scans survive navigation to the analyzer and back.
 const scanCache = new Map()
@@ -35,6 +38,12 @@ export default function ScannerPage() {
   const categoryId = getCategory(searchParams.get('cat')) ? searchParams.get('cat') : DEFAULT_CATEGORY
   const minStrength = Number(searchParams.get('min')) || 0
   const category = getCategory(categoryId)
+  const sectorFilter = searchParams.get('sec') || null // sector slug
+  const confirmOnly = searchParams.get('conf') === '1' // only stocks whose sector confirms
+
+  const sectorsState = useSectors()
+  const { bySlug: sectorsBySlug } = sectorsState
+  const sectorsEnabled = DATA_SOURCE === 'api'
 
   // Remember the timeframe (shared with the analyzer) and the other filters,
   // so the menu link and a reload bring the scanner back exactly as it was.
@@ -100,8 +109,21 @@ export default function ScannerPage() {
   const scanning = !data && !error && (symbols === null || symbols.length > 0)
   const total = symbols?.length ?? 0
 
-  const buckets = useMemo(() => categorize(data, timeframe, { minStrength }), [data, timeframe, minStrength])
-  const counts = useMemo(() => countAllTimeframes(data, { minStrength }), [data, minStrength])
+  // Sector filters apply to the tiles, the results and the all-timeframes matrix.
+  const rowFilter = useMemo(() => {
+    if (!sectorFilter && !confirmOnly) return null
+    return (row, cat) => {
+      if (sectorFilter && row.sector?.slug !== sectorFilter) return false
+      if (confirmOnly && !sectorConfirms(sectorsBySlug.get(row.sector?.slug), row.timeframe, cat.side)) return false
+      return true
+    }
+  }, [sectorFilter, confirmOnly, sectorsBySlug])
+
+  const buckets = useMemo(
+    () => categorize(data, timeframe, { minStrength, filter: rowFilter }),
+    [data, timeframe, minStrength, rowFilter],
+  )
+  const counts = useMemo(() => countAllTimeframes(data, { minStrength, filter: rowFilter }), [data, minStrength, rowFilter])
 
   const rows = useMemo(() => {
     const q = filterText.trim().toUpperCase()
@@ -140,8 +162,9 @@ export default function ScannerPage() {
   }
 
   // Preview navigation through the visible rows.
-  const previewIndex = preview ? rows.findIndex((r) => r.symbol === preview.symbol) : -1
-  const openRow = useCallback((r) => setPreview({ symbol: r.symbol, zoneId: r.zone.id }), [])
+  const previewIndex = preview?.symbol ? rows.findIndex((r) => r.symbol === preview.symbol) : -1
+  const openRow = useCallback((r) => setPreview({ symbol: r.symbol, zoneId: r.zone.id, sector: r.sector }), [])
+  const openSectorChart = useCallback((s) => setPreview({ sectorChart: { slug: s.slug, name: s.name } }), [])
   const goPrev = previewIndex > 0 ? () => openRow(rows[previewIndex - 1]) : null
   const goNext = previewIndex >= 0 && previewIndex < rows.length - 1 ? () => openRow(rows[previewIndex + 1]) : null
   const closePreview = useCallback(() => setPreview(null), [])
@@ -178,6 +201,33 @@ export default function ScannerPage() {
               ))}
             </select>
           </label>
+          {sectorsEnabled && (
+            <>
+              <label className="field">
+                <span className="field-label">Sector</span>
+                <select
+                  className="select"
+                  value={sectorFilter ?? ''}
+                  onChange={(e) => updateParams({ sec: e.target.value || null })}
+                >
+                  <option value="">All sectors</option>
+                  {(sectorsState.data?.sectors ?? []).map((s) => (
+                    <option key={s.slug} value={s.slug}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="checkbox" title="Only stocks whose sector index is approaching, inside or reacting from a zone on the same side (demand/supply) and timeframe">
+                <input
+                  type="checkbox"
+                  checked={confirmOnly}
+                  onChange={(e) => updateParams({ conf: e.target.checked ? '1' : null })}
+                />
+                Sector confirms
+              </label>
+            </>
+          )}
           <button type="button" className="btn btn-ghost" onClick={rescan} disabled={scanning}>
             ↻ Rescan
           </button>
@@ -247,6 +297,16 @@ export default function ScannerPage() {
           <h2 className="card-title">
             <span className={category.side === 'demand' ? 'text-demand' : 'text-supply'}>{category.label}</span>
             <span className="muted"> · {timeframeLabel(timeframe)} · {rows.length} stocks</span>
+            {sectorFilter && (
+              <button type="button" className="chip" onClick={() => updateParams({ sec: null })} title="Clear sector filter">
+                {sectorsBySlug.get(sectorFilter)?.name ?? sectorFilter} ✕
+              </button>
+            )}
+            {confirmOnly && (
+              <button type="button" className="chip" onClick={() => updateParams({ conf: null })} title="Clear filter">
+                Sector confirms ✕
+              </button>
+            )}
           </h2>
           <input
             className="input input-sm"
@@ -260,9 +320,26 @@ export default function ScannerPage() {
         {scanning ? (
           <p className="muted results-empty">Scanning…</p>
         ) : (
-          <ScanResultsTable rows={rows} sort={sort} onSort={handleSort} selectedSymbol={preview?.symbol} onSelect={openRow} />
+          <ScanResultsTable
+            rows={rows}
+            sort={sort}
+            onSort={handleSort}
+            selectedSymbol={preview?.symbol}
+            onSelect={openRow}
+            sectorsBySlug={sectorsEnabled ? sectorsBySlug : null}
+          />
         )}
       </section>
+
+      {sectorsEnabled && (
+        <SectorPanel
+          sectorsState={sectorsState}
+          timeframe={timeframe}
+          activeSlug={sectorFilter}
+          onSelect={(slug) => updateParams({ sec: slug })}
+          onOpenChart={openSectorChart}
+        />
+      )}
 
       <TimeframeMatrix
         counts={counts}
@@ -271,10 +348,21 @@ export default function ScannerPage() {
         onSelect={(tf, cat) => updateParams({ tf, cat })}
       />
 
-      {preview && (
+      {preview?.sectorChart && (
+        <ChartPreview
+          key={`sector:${preview.sectorChart.slug}|${timeframe}`}
+          sector={preview.sectorChart}
+          timeframe={timeframe}
+          onClose={closePreview}
+        />
+      )}
+
+      {preview?.symbol && (
         <ChartPreview
           key={`${preview.symbol}|${timeframe}`}
           symbol={preview.symbol}
+          stockSector={preview.sector}
+          sectorData={sectorsBySlug.get(preview.sector?.slug)}
           timeframe={timeframe}
           zoneId={preview.zoneId}
           onClose={closePreview}

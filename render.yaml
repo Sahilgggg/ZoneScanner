@@ -27,3 +27,7 @@ services:
         value: "24"
       - key: YAHOO_CONCURRENCY
         value: "4"
+      - key: MEMORY_CACHE_SYMBOLS
+        value: "100" # free instance has 512 MB RAM
+      - key: SECTOR_TTL_HOURS
+        value: "12"

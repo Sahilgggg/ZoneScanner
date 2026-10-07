@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import SectorBadge from './SectorBadge.jsx'
 import { statusLabel, strengthBand, timeframeLabel, ZONE_STATUS } from '../utils/constants.js'
 import { formatPercent, formatPrice, formatRange, formatZoneDistance } from '../utils/format.js'
 
@@ -15,7 +16,9 @@ function SortHeader({ label, column, sort, onSort, num }) {
 }
 
 // Stocks in one scanner category. Clicking a row opens the chart preview.
-export default function ScanResultsTable({ rows, sort, onSort, selectedSymbol, onSelect }) {
+// `sectorsBySlug` (real data only) adds a Sector column showing whether the
+// stock's sector index is also in play on the same side and timeframe.
+export default function ScanResultsTable({ rows, sort, onSort, selectedSymbol, onSelect, sectorsBySlug = null }) {
   if (!rows.length) {
     return <p className="muted results-empty">No stocks in this category for the selected timeframe and filters.</p>
   }
@@ -36,6 +39,7 @@ export default function ScanResultsTable({ rows, sort, onSort, selectedSymbol, o
             <SortHeader label="Touches" column="touches" num {...header} />
             <th>Pattern</th>
             <th>Status</th>
+            {sectorsBySlug && <th>Sector</th>}
             <th>Timeframe</th>
             <th aria-label="Open analyzer" />
           </tr>
@@ -83,6 +87,16 @@ export default function ScanResultsTable({ rows, sort, onSort, selectedSymbol, o
                     {statusLabel(r.zone.status)}
                   </span>
                 </td>
+                {sectorsBySlug && (
+                  <td>
+                    <SectorBadge
+                      sector={r.sector}
+                      sectorData={sectorsBySlug.get(r.sector?.slug)}
+                      timeframe={r.timeframe}
+                      side={r.zone.side}
+                    />
+                  </td>
+                )}
                 <td>{timeframeLabel(r.timeframe)}</td>
                 <td>
                   <Link
