@@ -1,5 +1,6 @@
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { IconGithub } from './components/Icons.jsx'
+import ThemeToggle from './components/ThemeToggle.jsx'
 import HomePage from './pages/HomePage.jsx'
 import ScannerPage from './pages/ScannerPage.jsx'
 import StockAnalyzer from './pages/StockAnalyzer.jsx'
@@ -8,14 +9,23 @@ import { analyzerPath, scannerPath } from './utils/preferences.js'
 
 const REPO_URL = 'https://github.com/Sahilgggg/ZoneScanner'
 
+// Mark: a supply band over a demand band with price weaving between them.
 function Logo() {
   return (
     <span className="brand-mark" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="18" height="18">
-        <rect x="3" y="4" width="18" height="5" rx="1.5" fill="currentColor" opacity="0.55" />
-        <rect x="3" y="15" width="18" height="5" rx="1.5" fill="currentColor" />
-        <path d="M7 12h10" stroke="currentColor" strokeWidth="1.6" strokeDasharray="2 2.5" />
+      <svg viewBox="0 0 28 28" width="26" height="26">
+        <rect x="2" y="4" width="24" height="6" className="mark-supply" />
+        <rect x="2" y="18" width="24" height="6" className="mark-demand" />
+        <path d="M3 21 L9 9 L14 20 L19 8 L25 19" className="mark-line" />
       </svg>
+    </span>
+  )
+}
+
+function Wordmark() {
+  return (
+    <span className="wordmark">
+      Zone<em>Scanner</em>
     </span>
   )
 }
@@ -38,10 +48,10 @@ function Footer() {
         <div className="footer-brand">
           <Link to="/" className="brand">
             <Logo />
-            <span>ZoneScanner</span>
+            <Wordmark />
           </Link>
           <span className="footer-credit">
-            Built with care by <strong>Sahil</strong> &amp; <strong>Yash</strong>
+            Designed &amp; built by <strong>Sahil</strong> and <strong>Yash</strong>
           </span>
         </div>
         <nav className="footer-nav" aria-label="Footer">
@@ -68,14 +78,11 @@ export default function App() {
 
   return (
     <div className={isHome ? 'app app-home' : 'app'}>
-      <div className="backdrop" aria-hidden="true" />
       <header className="app-header">
         <div className="header-inner">
           <Link to="/" className="brand">
             <Logo />
-            <span className="brand-name">
-              Zone<span className="grad-text">Scanner</span>
-            </span>
+            <Wordmark />
           </Link>
           <nav className="app-nav" aria-label="Main">
             <NavLink to="/" end className="nav-link">
@@ -88,15 +95,18 @@ export default function App() {
               Analyzer
             </NavLink>
           </nav>
-          {DATA_SOURCE === 'demo' ? (
-            <span className="demo-badge" title="Prices are synthetic demo data generated in the browser, not real NSE prices.">
-              Demo data
-            </span>
-          ) : (
-            <span className="live-badge" title="Real NSE prices via Yahoo Finance, delayed ~15 minutes">
-              <span className="live-dot" aria-hidden="true" /> NSE · delayed
-            </span>
-          )}
+          <div className="header-tools">
+            {DATA_SOURCE === 'demo' ? (
+              <span className="demo-badge" title="Prices are synthetic demo data generated in the browser, not real NSE prices.">
+                Demo data
+              </span>
+            ) : (
+              <span className="live-badge" title="Real NSE prices via Yahoo Finance, delayed ~15 minutes">
+                <span className="live-dot" aria-hidden="true" /> NSE · delayed
+              </span>
+            )}
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 

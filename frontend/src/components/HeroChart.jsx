@@ -66,16 +66,13 @@ export default function HeroChart() {
     <svg className="hero-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Illustration of a demand zone and a supply zone on a candlestick chart">
       <defs>
         <linearGradient id="hc-demand" x1="0" x2="1">
-          <stop offset="0" stopColor="var(--demand)" stopOpacity="0.32" />
-          <stop offset="1" stopColor="var(--demand)" stopOpacity="0.06" />
+          <stop offset="0" stopColor="var(--demand)" stopOpacity="0.22" />
+          <stop offset="1" stopColor="var(--demand)" stopOpacity="0.08" />
         </linearGradient>
         <linearGradient id="hc-supply" x1="0" x2="1">
-          <stop offset="0" stopColor="var(--supply)" stopOpacity="0.3" />
-          <stop offset="1" stopColor="var(--supply)" stopOpacity="0.05" />
+          <stop offset="0" stopColor="var(--supply)" stopOpacity="0.2" />
+          <stop offset="1" stopColor="var(--supply)" stopOpacity="0.07" />
         </linearGradient>
-        <filter id="hc-glow" x="-20%" y="-50%" width="140%" height="200%">
-          <feGaussianBlur stdDeviation="6" />
-        </filter>
       </defs>
 
       {/* grid */}
@@ -96,16 +93,6 @@ export default function HeroChart() {
 
       {/* demand zone */}
       <g className="hc-zone hc-zone-demand">
-        <rect
-          x={DEMAND.x}
-          y={y(DEMAND.top) - 4}
-          width={zoneRight - DEMAND.x}
-          height={y(DEMAND.bottom) - y(DEMAND.top) + 8}
-          fill="var(--demand)"
-          opacity="0.18"
-          filter="url(#hc-glow)"
-          className="hc-glow"
-        />
         <rect x={DEMAND.x} y={y(DEMAND.top)} width={zoneRight - DEMAND.x} height={y(DEMAND.bottom) - y(DEMAND.top)} fill="url(#hc-demand)" />
         <line x1={DEMAND.x} x2={zoneRight} y1={y(DEMAND.top)} y2={y(DEMAND.top)} className="hc-edge" />
         <g transform={`translate(${DEMAND.x + 6}, ${y(DEMAND.bottom) + 8})`}>

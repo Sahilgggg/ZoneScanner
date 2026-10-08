@@ -4,24 +4,26 @@
 // A zone rectangle starts at its first base candle and extends to the right
 // edge of the chart (active zones) or to the candle that broke it.
 
-const COLORS = {
-  demand: { fill: 'rgba(45, 212, 191, 0.14)', fillSelected: 'rgba(45, 212, 191, 0.3)', line: 'rgba(45, 212, 191, 0.9)' },
-  supply: { fill: 'rgba(251, 113, 133, 0.14)', fillSelected: 'rgba(251, 113, 133, 0.3)', line: 'rgba(251, 113, 133, 0.9)' },
-  broken: { fill: 'rgba(148, 163, 184, 0.08)', fillSelected: 'rgba(148, 163, 184, 0.22)', line: 'rgba(148, 163, 184, 0.65)' },
+// Fallback colors; the chart passes theme colors in via setColors().
+const DEFAULT_COLORS = {
+  demand: { fill: 'rgba(63, 125, 92, 0.12)', fillSelected: 'rgba(63, 125, 92, 0.26)', line: 'rgba(63, 125, 92, 0.85)' },
+  supply: { fill: 'rgba(180, 83, 58, 0.12)', fillSelected: 'rgba(180, 83, 58, 0.26)', line: 'rgba(180, 83, 58, 0.85)' },
+  broken: { fill: 'rgba(122, 119, 109, 0.08)', fillSelected: 'rgba(122, 119, 109, 0.2)', line: 'rgba(122, 119, 109, 0.6)' },
 }
 
 class ZonesRenderer {
-  constructor(rects) {
+  constructor(rects, colors) {
     this._rects = rects
+    this._colors = colors
   }
 
   draw(target) {
     target.useBitmapCoordinateSpace(({ context: ctx, horizontalPixelRatio: hr, verticalPixelRatio: vr }) => {
       ctx.save()
-      ctx.font = `600 ${Math.round(10.5 * vr)}px 'JetBrains Mono', ui-monospace, monospace`
+      ctx.font = `500 ${Math.round(10.5 * vr)}px 'IBM Plex Mono', ui-monospace, monospace`
       ctx.textBaseline = 'top'
       for (const r of this._rects) {
-        const colors = r.zone.status === 'BROKEN' ? COLORS.broken : COLORS[r.zone.side]
+        const colors = r.zone.status === 'BROKEN' ? this._colors.broken : this._colors[r.zone.side]
         const x = Math.round(r.x * hr)
         const y = Math.round(r.y * vr)
         const w = Math.max(1, Math.round(r.w * hr))
@@ -38,7 +40,8 @@ class ZonesRenderer {
         if (r.w > 90 && r.h > 12) {
           ctx.fillStyle = colors.line
           const label = `${r.zone.side === 'demand' ? 'D' : 'S'} · ${r.zone.pattern} · ${r.zone.strength}`
-          ctx.fillText(label, x + 4 * hr, y + 2 * vr)
+          // keep the label inside the visible pane when the zone starts off-screen
+          ctx.fillText(label, Math.max(x, 0) + 4 * hr, y + 2 * vr)
         }
       }
       ctx.restore()
@@ -91,7 +94,7 @@ class ZonesPaneView {
   }
 
   renderer() {
-    return new ZonesRenderer(this._rects)
+    return new ZonesRenderer(this._rects, this._source.colors)
   }
 }
 
@@ -101,6 +104,7 @@ export class ZonesPrimitive {
     this.series = null
     this.zones = []
     this.selectedId = null
+    this.colors = DEFAULT_COLORS
     this._requestUpdate = null
     this._view = new ZonesPaneView(this)
     this._views = [this._view]
@@ -121,6 +125,11 @@ export class ZonesPrimitive {
   setZones(zones, selectedId) {
     this.zones = zones ?? []
     this.selectedId = selectedId ?? null
+    this._requestUpdate?.()
+  }
+
+  setColors(colors) {
+    this.colors = colors ?? DEFAULT_COLORS
     this._requestUpdate?.()
   }
 

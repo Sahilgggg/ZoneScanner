@@ -1,19 +1,47 @@
 import { CandlestickSeries, ColorType, createChart, CrosshairMode, HistogramSeries } from 'lightweight-charts'
 import { useEffect, useRef, useState } from 'react'
 import { ZonesPrimitive } from '../chart/zonesPrimitive.js'
+import { useTheme } from '../hooks/useTheme.js'
 import { formatNumber, formatVolume } from '../utils/format.js'
 
-const UP = '#2dd4bf'
-const DOWN = '#fb7185'
 const VISIBLE_CANDLES = 160
+
+// Chart colors come from the CSS theme variables (index.css), so the chart
+// follows the light/dark theme.
+function readChartColors() {
+  const css = getComputedStyle(document.documentElement)
+  const v = (name) => css.getPropertyValue(name).trim()
+  return {
+    text: v('--chart-text'),
+    grid: v('--chart-grid'),
+    border: v('--chart-border'),
+    up: v('--chart-up'),
+    down: v('--chart-down'),
+    volUp: v('--chart-vol-up'),
+    volDown: v('--chart-vol-down'),
+    crosshair: v('--chart-crosshair'),
+    label: v('--chart-label'),
+    zones: {
+      demand: { fill: v('--zone-demand-fill'), fillSelected: v('--zone-demand-fill-sel'), line: v('--zone-demand-line') },
+      supply: { fill: v('--zone-supply-fill'), fillSelected: v('--zone-supply-fill-sel'), line: v('--zone-supply-line') },
+      broken: { fill: v('--zone-broken-fill'), fillSelected: v('--zone-broken-fill-sel'), line: v('--zone-broken-line') },
+    },
+  }
+}
+
+function volumeData(candles, colors) {
+  return candles.map((c) => ({ time: c.time, value: c.volume, color: c.close >= c.open ? colors.volUp : colors.volDown }))
+}
 
 // Interactive candlestick chart with volume, zone rectangles, crosshair,
 // zoom/pan and a current-price line. Click a zone to select it.
 export default function StockChart({ candles, zones, selectedZoneId, onZoneClick, height = 520 }) {
   const containerRef = useRef(null)
   const chartRef = useRef(null)
+  const candlesRef = useRef([])
   const onZoneClickRef = useRef(onZoneClick)
   const [hover, setHover] = useState(null)
+  const [theme] = useTheme()
 
   useEffect(() => {
     onZoneClickRef.current = onZoneClick
@@ -25,28 +53,15 @@ export default function StockChart({ candles, zones, selectedZoneId, onZoneClick
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#8492a9',
-        fontFamily: 'Inter, system-ui, Segoe UI, Roboto, sans-serif',
+        fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
+        fontSize: 11,
         attributionLogo: false,
       },
-      grid: {
-        vertLines: { color: 'rgba(148, 163, 184, 0.06)' },
-        horzLines: { color: 'rgba(148, 163, 184, 0.06)' },
-      },
-      crosshair: {
-        mode: CrosshairMode.Normal,
-        vertLine: { color: 'rgba(124, 131, 255, 0.5)', labelBackgroundColor: '#4f56d6' },
-        horzLine: { color: 'rgba(124, 131, 255, 0.5)', labelBackgroundColor: '#4f56d6' },
-      },
-      rightPriceScale: { borderColor: 'rgba(148, 163, 184, 0.15)' },
-      timeScale: { borderColor: 'rgba(148, 163, 184, 0.15)', rightOffset: 6 },
+      crosshair: { mode: CrosshairMode.Normal },
+      timeScale: { rightOffset: 6 },
     })
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: UP,
-      downColor: DOWN,
-      wickUpColor: UP,
-      wickDownColor: DOWN,
       borderVisible: false,
       priceLineVisible: true,
       lastValueVisible: true,
@@ -85,19 +100,40 @@ export default function StockChart({ candles, zones, selectedZoneId, onZoneClick
     }
   }, [])
 
+  // Apply theme colors (runs on mount and whenever the theme changes).
+  useEffect(() => {
+    const api = chartRef.current
+    if (!api) return
+    const colors = readChartColors()
+    api.colors = colors
+    api.chart.applyOptions({
+      layout: { textColor: colors.text },
+      grid: { vertLines: { color: colors.grid }, horzLines: { color: colors.grid } },
+      crosshair: {
+        vertLine: { color: colors.crosshair, labelBackgroundColor: colors.label },
+        horzLine: { color: colors.crosshair, labelBackgroundColor: colors.label },
+      },
+      rightPriceScale: { borderColor: colors.border },
+      timeScale: { borderColor: colors.border },
+    })
+    api.candleSeries.applyOptions({
+      upColor: colors.up,
+      downColor: colors.down,
+      wickUpColor: colors.up,
+      wickDownColor: colors.down,
+    })
+    api.zonesPrimitive.setColors(colors.zones)
+    if (candlesRef.current.length) api.volumeSeries.setData(volumeData(candlesRef.current, colors))
+  }, [theme])
+
   // Load candles + volume.
   useEffect(() => {
     const api = chartRef.current
     if (!api) return
     const list = candles ?? []
+    candlesRef.current = list
     api.candleSeries.setData(list.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })))
-    api.volumeSeries.setData(
-      list.map((c) => ({
-        time: c.time,
-        value: c.volume,
-        color: c.close >= c.open ? 'rgba(45, 212, 191, 0.35)' : 'rgba(251, 113, 133, 0.35)',
-      })),
-    )
+    api.volumeSeries.setData(volumeData(list, api.colors ?? readChartColors()))
     if (list.length) {
       api.chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, list.length - VISIBLE_CANDLES), to: list.length + 4 })
     }

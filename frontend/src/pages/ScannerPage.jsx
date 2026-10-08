@@ -174,9 +174,9 @@ export default function ScannerPage() {
   return (
     <div className="scanner">
       <header className="page-head">
-        <span className="eyebrow">Market scanner</span>
+        <span className="kicker">The scanner</span>
         <h1 className="page-title">
-          Demand &amp; supply zones <span className="grad-text">across the market</span>
+          Demand &amp; supply zones, <em>across the market</em>
         </h1>
         <p className="page-sub">
           Pick a universe and timeframe — every stock is sorted into 12 live categories. Click any stock to open its
